@@ -106,7 +106,6 @@ namespace EnhancedGarbageTruckAI
                 {
                     ProcessNewLandfills();
                     ProcessRemovedLandfills();
-                    RemoveIncomingOffers();
 
                     ProcessNewPickups();
 
@@ -171,10 +170,7 @@ namespace EnhancedGarbageTruckAI
                 _landfills.Add(x, new Landfill(x, ref _master));
 
                 foreach (ushort pickup in data.BuildingsWithGarbage)
-                {
-                    foreach (ushort id in _landfills.Keys)
-                        _landfills[id].AddPickup(pickup);
-                }
+                    _landfills[x].AddPickup(pickup);
             }
         }
 
@@ -184,12 +180,6 @@ namespace EnhancedGarbageTruckAI
 
             foreach (ushort id in data.BuildingsRemoved)
                 _landfills.Remove(id);
-        }
-
-        private void RemoveIncomingOffers()
-        {
-            foreach (ushort id in _landfills.Keys)
-                _landfills[id].RemoveIncomingOffers();
         }
 
         private void ProcessNewPickups()

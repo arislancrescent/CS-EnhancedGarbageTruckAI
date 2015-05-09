@@ -14,6 +14,7 @@ namespace EnhancedGarbageTruckAI
 {
     public class Landfill
     {
+        private Settings _settings;
         private Helper _helper;
 
         private string _truckCount;
@@ -27,6 +28,7 @@ namespace EnhancedGarbageTruckAI
 
         public Landfill(ushort id, ref Dictionary<ushort, DateTime> master)
         {
+            _settings = Settings.Instance;
             _helper = Helper.Instance;
 
             _truckCount = ColossalFramework.Globalization.Locale.Get("AIINFO_GARBAGE_TRUCKS");
@@ -43,7 +45,7 @@ namespace EnhancedGarbageTruckAI
         public void AddPickup(ushort id)
         {
             if (!_master.ContainsKey(id))
-                _master.Add(id, SimulationManager.instance.m_currentGameTime.AddDays(-8));
+                _master.Add(id, SimulationManager.instance.m_currentGameTime.AddDays((_settings.DispatchGap + 1) * -1));
 
             if (_primary.Contains(id) || _secondary.Contains(id))
                 return;
@@ -97,13 +99,6 @@ namespace EnhancedGarbageTruckAI
             return distance <= range;
         }
 
-        public void RemoveIncomingOffers()
-        {
-            TransferManager.TransferOffer offer = default(TransferManager.TransferOffer);
-            offer.Building = _id;
-            Singleton<TransferManager>.instance.RemoveIncomingOffer (TransferManager.TransferReason.Garbage, offer);
-        }
-
         public void DispatchIdleVehicle()
         {
             if (SimulationManager.instance.SimulationPaused) return;
@@ -111,7 +106,7 @@ namespace EnhancedGarbageTruckAI
             Building[] buildings = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
             Building me = buildings[_id];
 
-            if ((me.m_flags & Building.Flags.Active) == Building.Flags.None) return;
+            if ((me.m_flags & Building.Flags.Active) == Building.Flags.None && me.m_productionRate == 0) return;
 
             if ((me.m_flags & Building.Flags.Downgrading) != Building.Flags.None) return;
 
@@ -120,26 +115,26 @@ namespace EnhancedGarbageTruckAI
             string stats = me.Info.m_buildingAI.GetLocalizedStats(_id, ref buildings[_id]);
             stats = stats.Substring(stats.IndexOf(_truckCount));
 
-            string now;
-            string max;
+            int now;
+            int max;
 
-            Match match = Regex.Match(stats, @"\d");
+            Match match = Regex.Match(stats, @"[0-9]+");
 
             if (match.Success)
-                now = match.Value;
+                now = int.Parse(match.Value);
             else
                 return;
 
             match = match.NextMatch();
 
             if (match.Success)
-                max = match.Value;
+                max = int.Parse(match.Value);
             else
                 return;
 
-            if (int.Parse(now) >= int.Parse(max))
+            if (now >= max)
                 return;
-         
+
             ushort target = 0;
 
             target = GetUnclaimedTarget(_primary);
@@ -147,9 +142,6 @@ namespace EnhancedGarbageTruckAI
             if (target == 0)
                 target = GetUnclaimedTarget(_secondary);
             
-            if (target == 0)
-                target = GetUnclaimedTarget(_checkups);
-
             if (target == 0)
                 return;
 
@@ -169,13 +161,19 @@ namespace EnhancedGarbageTruckAI
 
         private ushort GetUnclaimedTarget(ICollection<ushort> targets)
         {
+            ushort target = 0;
+            DateTime lastDispatch = SimulationManager.instance.m_currentGameTime;
+
             foreach (ushort i in targets)
             {
-                if (_master.ContainsKey(i) && (SimulationManager.instance.m_currentGameTime - _master[i]).TotalDays > 7)
-                    return i;
+                if (_master.ContainsKey(i) && _master[i] < lastDispatch && (SimulationManager.instance.m_currentGameTime - _master[i]).TotalDays > _settings.DispatchGap)
+                {
+                    target = i;
+                    lastDispatch = _master[i];
+                }
             }
 
-            return 0;
+            return target;
         }
 
         public ushort AssignTarget(Vehicle truck)
@@ -208,7 +206,7 @@ namespace EnhancedGarbageTruckAI
                 if (target != current)
                 {
                     if (_master.ContainsKey(current))
-                        _master[current] = SimulationManager.instance.m_currentGameTime.AddDays(-8);
+                        _master[current] = SimulationManager.instance.m_currentGameTime.AddDays((_settings.DispatchGap + 1) * -1);
                 }
 
                 if (_master.ContainsKey(target))
@@ -270,7 +268,7 @@ namespace EnhancedGarbageTruckAI
 
                 bool candidateProblematic = (buildings[id].m_problems & Notification.Problem.Garbage) != Notification.Problem.None;
 
-                if ((SimulationManager.instance.m_currentGameTime - _master[id]).TotalDays <= 7)
+                if ((SimulationManager.instance.m_currentGameTime - _master[id]).TotalDays <= _settings.DispatchGap)
                 {
                     if (d > 2500)
                         continue;
