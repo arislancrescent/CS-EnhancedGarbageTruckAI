@@ -115,7 +115,7 @@ namespace EnhancedGarbageTruckAI
             }
             catch (Exception e)
             {
-                string error = String.Format("Failed to {0}\r\n", !_initialized ? "initialize" : "updated");
+                string error = String.Format("Failed to {0}\r\n", !_initialized ? "initialize" : "update");
                 error += String.Format("Error: {0}\r\n", e.Message);
                 error += "\r\n";
                 error += "==== STACK TRACE ====\r\n";
