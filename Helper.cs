@@ -14,15 +14,16 @@ namespace EnhancedGarbageTruckAI
 {
     internal sealed class Helper
     {
-        private Helper()
-        {
-            GameLoaded = false;
-        }
+        private static Helper _Instance = null;
+        public static Helper Instance {
+			get {
+				if (Helper._Instance == null)
+					Helper._Instance = new Helper (); // TODO: Why do we need a instance at all?
+				return Helper._Instance;
+			}
+		}
 
-        private static readonly Helper _Instance = new Helper();
-        public static Helper Instance { get { return _Instance; } }
-
-        internal bool GameLoaded;
+        internal bool GameLoaded = false;
 
         public void Log(string message)
         {
